@@ -1,0 +1,2304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drawing AI Assistant</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      background: #f9f9f9; 
+    }
+    header { 
+      background: #4a90e2; 
+      color: white; 
+      padding: 1em; 
+      text-align: center; 
+      font-size: 1.5em; 
+    }
+    main { 
+      display: flex; 
+      min-height: calc(100vh - 80px);
+      flex-direction: row;
+    }
+    aside { 
+      width: 200px; 
+      background: #fff; 
+      padding: 1em; 
+      border-right: 1px solid #ccc; 
+      overflow-y: auto;
+    }
+    #workspace { 
+      flex: 1; 
+      padding: 1em; 
+      display: flex; 
+      flex-direction: column; 
+      min-width: 0;
+    }
+    #ai-response { 
+      background: #e8f0fe; 
+      padding: 1em; 
+      margin-bottom: 1em; 
+      border-radius: 6px; 
+      min-height: 60px;
+      animation: fadeIn 0.5s ease-out;
+    }
+    #result-area { 
+      flex: 1; 
+      background: #fff; 
+      border: 1px dashed #aaa; 
+      padding: 1em; 
+      position: relative; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    button, select { 
+      margin: 0.3em 0; 
+      padding: 0.5em; 
+      cursor: pointer; 
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f8f9fa;
+      width: 100%;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #e9ecef;
+    }
+    .active-tool { 
+      background: #4a90e2 !important; 
+      color: white !important; 
+    }
+    #canvas { 
+      border: 1px solid #ccc; 
+      display: block; 
+      cursor: crosshair;
+      max-width: 100%;
+      max-height: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .reference-controls {
+      display: flex;
+      gap: 0.5em;
+      margin-bottom: 1em;
+      align-items: center;
+    }
+
+    #imageUrl {
+      flex: 1;
+      padding: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    #reference-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #referenceImage {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0.7;
+      border: 1px solid #ddd;
+    }
+
+    .reference-controls-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 5px;
+      border-radius: 5px;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      pointer-events: all;
+      font-size: 12px;
+    }
+
+    .reference-controls-overlay button {
+      padding: 3px 8px;
+      font-size: 12px;
+      margin: 0;
+      width: auto;
+    }
+
+    .reference-controls-overlay input[type="range"] {
+      width: 60px;
+      margin: 0;
+    }
+
+    #opacityLabel {
+      font-size: 11px;
+      color: #666;
+    }
+    .tool-section { 
+      margin-bottom: 1.5em; 
+      border-bottom: 1px solid #eee;
+      padding-bottom: 1em;
+    }
+    .tool-section:last-child {
+      border-bottom: none;
+    }
+    .tool-section h4 { 
+      margin: 0 0 0.5em 0; 
+      color: #333;
+      font-size: 16px;
+    }
+    #colorPicker { 
+      width: 100%; 
+      height: 40px; 
+      border: 1px solid #ccc; 
+      cursor: pointer; 
+      margin-bottom: 0.5em;
+    }
+    #brushSize { 
+      width: 100%; 
+      margin-bottom: 0.5em;
+    }
+    .color-preset {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      margin: 2px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .ai-controls {
+      display: flex;
+      gap: 0.5em;
+      margin-bottom: 1em;
+    }
+    #prompt {
+      flex: 1;
+      padding: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 200px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -100px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      padding: 0.3em;
+      border: 1px solid #ddd;
+      margin-bottom: 0.2em;
+      border-radius: 3px;
+      background: #f9f9f9;
+    }
+
+    .layer-item.active {
+      background: #e3f2fd;
+      border-color: #4a90e2;
+    }
+
+    .layer-item input[type="text"] {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      margin-left: 0.3em;
+    }
+
+    .layer-controls {
+      display: flex;
+      gap: 0.2em;
+      margin-left: 0.3em;
+    }
+
+    .layer-controls button {
+      padding: 0.2em 0.4em;
+      font-size: 10px;
+      margin: 0;
+      width: auto;
+    }
+
+    .keyboard-shortcuts {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      max-width: 200px;
+      display: none;
+    }
+
+    .shortcuts-toggle {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
+      aside {
+        width: 100%;
+        padding: 0.5em;
+      }
+      .tool-section {
+        margin-bottom: 1em;
+      }
+      #workspace {
+        padding: 0.5em;
+      }
+      header {
+        font-size: 1.2em;
+        padding: 0.5em;
+      }
+      #canvas {
+        width: 100%;
+        height: 300px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .ai-controls, .reference-controls {
+        flex-direction: column;
+      }
+      button {
+        padding: 0.7em;
+        font-size: 16px;
+      }
+      .reference-controls-overlay {
+        flex-direction: column;
+        gap: 3px;
+      }
+      .reference-controls-overlay input[type="range"] {
+        width: 80px;
+      }
+    }
+
+      @keyframes glow {
+        from { box-shadow: 0 0 5px #f5576c; }
+        to { box-shadow: 0 0 20px #f5576c, 0 0 30px #f5576c; }
+      }
+
+      @keyframes fadeIn {
+        from { 
+          opacity: 0; 
+          transform: translateY(10px); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateY(0); 
+        }
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+
+    .voice-recording {
+      animation: pulse 1s ease-in-out infinite;
+      background: #e74c3c !important;
+      box-shadow: 0 0 15px rgba(231, 76, 60, 0.6);
+    }
+
+    .auto-speak-on {
+      background: #27ae60 !important;
+      box-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+    }
+
+    .voice-status {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 1000;
+      display: none;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    /* Advanced Features Styling */
+    .symmetry-line {
+      position: absolute;
+      background: rgba(255, 0, 0, 0.3);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .perspective-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .gallery-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      overflow-y: auto;
+    }
+
+    .gallery-content {
+      background: white;
+      margin: 2% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 1000px;
+      border-radius: 10px;
+      position: relative;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .gallery-item {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .gallery-item:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+
+    .gallery-item-info {
+      padding: 10px;
+      font-size: 12px;
+      background: #f9f9f9;
+    }
+
+    .close-gallery {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close-gallery:hover {
+      color: #333;
+    }
+
+    .pattern-brush {
+      background: linear-gradient(45deg, #ff6b6b, #feca57) !important;
+      color: white !important;
+    }
+
+    .gradient-tool {
+      background: linear-gradient(45deg, #667eea, #764ba2) !important;
+      color: white !important;
+    }
+
+    .symmetry-active {
+      background: #e74c3c !important;
+      color: white !important;
+      box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+    }
+
+    .grid-active {
+      background: #3498db !important;
+      color: white !important;
+      box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <header>Drawing AI Assistant</header>
+  <main>
+    <aside>
+      <h3>Drawing Tools</h3>
+      <div class="tool-section">
+        <h4>Basic Tools</h4>
+        <div class="tooltip">
+          <button id="pencil" onclick="setTool('pencil')" class="active-tool">✏️ Pencil</button>
+          <span class="tooltiptext">Draw freehand with your mouse or finger</span>
+        </div>
+        <div class="tooltip">
+          <button id="eraser" onclick="setTool('eraser')">🧹 Eraser</button>
+          <span class="tooltiptext">Erase parts of your drawing</span>
+        </div>
+        <div class="tooltip">
+          <button id="fill" onclick="setTool('fill')">🪣 Fill</button>
+          <span class="tooltiptext">Fill enclosed areas with color</span>
+        </div>
+        <div class="tooltip">
+          <button id="eyedropper" onclick="setTool('eyedropper')">💧 Eyedropper</button>
+          <span class="tooltiptext">Pick color from canvas</span>
+        </div>
+      </div>
+      <div class="tool-section">
+        <h4>History</h4>
+        <button onclick="undo()" id="undoBtn">↶ Undo</button>
+        <button onclick="redo()" id="redoBtn">↷ Redo</button>
+      </div>
+      <div class="tool-section">
+        <h4>Layers</h4>
+        <div id="layersList"></div>
+        <button onclick="addLayer()" style="font-size: 12px;">+ Add Layer</button>
+      </div>
+      <div class="tool-section">
+        <h4>Brush Settings</h4>
+        <label for="brushSize">Size: <span id="sizeDisplay">5px</span></label>
+        <input type="range" id="brushSize" min="1" max="50" value="5" onchange="setBrushSize(this.value)">
+      </div>
+      <div class="tool-section">
+        <h4>Colors</h4>
+        <input type="color" id="colorPicker" value="#000000" onchange="setColor(this.value)">
+        <div>
+          <div class="color-preset" style="background-color: #000000" onclick="setColor('#000000')" title="Black"></div>
+          <div class="color-preset" style="background-color: #ff0000" onclick="setColor('#ff0000')" title="Red"></div>
+          <div class="color-preset" style="background-color: #00ff00" onclick="setColor('#00ff00')" title="Green"></div>
+          <div class="color-preset" style="background-color: #0000ff" onclick="setColor('#0000ff')" title="Blue"></div>
+          <div class="color-preset" style="background-color: #ffff00" onclick="setColor('#ffff00')" title="Yellow"></div>
+          <div class="color-preset" style="background-color: #ff00ff" onclick="setColor('#ff00ff')" title="Magenta"></div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="workspace">
+      <div id="ai-response">
+        <strong>🤖 AI Drawing Assistant</strong><br>
+        Ask me: "draw a cat" or "help with tools"<br><br>
+        <strong>Examples:</strong><br>
+        • "cat" - drawing steps<br>
+        • "house" - shape guide<br>
+        • "pencil not working" - quick fix - Tool-specific guidance
+      </div>
+      <div class="ai-controls">
+        <input type="text" id="prompt" placeholder="What would you like to draw or need help with? (e.g., cat, house, tree, 'help with tools', 'brush not working')">
+        <button onclick="askAI()">🤖 Ask AI</button>
+        <button onclick="askAI('premium')" id="premium-ask-btn" style="background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white;">✨ Premium AI</button>
+        <button onclick="toggleVoiceInput()" id="voice-btn" style="background: #e74c3c; color: white; min-width: 80px;">🎤 Voice</button>
+        <button onclick="toggleAutoSpeak()" id="speak-btn" style="background: #9b59b6; color: white; min-width: 80px;">🔊 Speak</button>
+      </div></script>
+    </script>
+    <style>
+      #premium-ask-btn {
+        margin-left: 0.5em;
+        min-width: 120px;
+        font-weight: bold;
+      }
+
+      #premium-ask-btn:disabled {
+        background: #ccc !important;
+        cursor: not-allowed;
+      }
+    </style>
+      <div class="reference-controls">
+        <input type="url" id="imageUrl" placeholder="Try: https://images.unsplash.com/photo-1574158622682-e40e69881006 (cat) or https://i.imgur.com/example.jpg">
+        <button onclick="loadReference()">📷 Load Reference</button>
+        <button onclick="clearReference()" id="clearRefBtn" style="display: none;">❌ Clear Reference</button>
+        <button onclick="showImageExamples()" style="font-size: 12px;">💡 Examples</button>
+      </div>
+      <div id="result-area">
+        <div id="reference-container" style="display: none;">
+          <img id="referenceImage" alt="Reference image" />
+          <div class="reference-controls-overlay">
+            <button onclick="toggleReference()" id="toggleRefBtn">👁️ Hide</button>
+            <input type="range" id="opacitySlider" min="0.1" max="1" step="0.1" value="0.7" onchange="setReferenceOpacity(this.value)">
+            <span id="opacityLabel">70%</span>
+          </div>
+        </div>
+        <canvas id="canvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+
+    <aside>
+      <h3>Advanced Tools</h3>
+      <div class="tool-section">
+        <h4>Drawing Features</h4>
+        <div class="tooltip">
+          <button id="gradient" onclick="setTool('gradient')" class="gradient-tool">🌈 Gradient</button>
+          <span class="tooltiptext">Create smooth color transitions</span>
+        </div>
+        <div class="tooltip">
+          <button id="pattern" onclick="setTool('pattern')" class="pattern-brush">🔶 Pattern</button>
+          <span class="tooltiptext">Textured brush patterns</span>
+        </div>
+        <div class="tooltip">
+          <button id="symmetry" onclick="toggleSymmetry()">🪞 Symmetry</button>
+          <span class="tooltiptext">Mirror drawing mode</span>
+        </div>
+        <div class="tooltip">
+          <button id="grid" onclick="toggleGrid()">📐 Grid</button>
+          <span class="tooltiptext">Perspective drawing grid</span>
+        </div>
+      </div>
+      <div class="tool-section">
+        <h4>Shapes</h4>
+        <div class="tooltip">
+          <button id="rectangle" onclick="setTool('rectangle')">⬜ Rectangle</button>
+          <span class="tooltiptext">Click and drag to draw a rectangle</span>
+        </div>
+        <div class="tooltip">
+          <button id="circle" onclick="setTool('circle')">⭕ Circle</button>
+          <span class="tooltiptext">Click and drag to draw a circle</span>
+        </div>
+        <div class="tooltip">
+          <button id="line" onclick="setTool('line')">📏 Line</button>
+          <span class="tooltiptext">Click and drag to draw a straight line</span>
+        </div>
+        <div class="tooltip">
+          <button id="triangle" onclick="setTool('triangle')">🔺 Triangle</button>
+          <span class="tooltiptext">Click and drag to draw a triangle</span>
+        </div>
+        <div class="tooltip">
+          <button id="star" onclick="setTool('star')">⭐ Star</button>
+          <span class="tooltiptext">Click and drag to draw a star</span>
+        </div>
+        <div class="tooltip">
+          <button id="arrow" onclick="setTool('arrow')">➤ Arrow</button>
+          <span class="tooltiptext">Click and drag to draw an arrow</span>
+        </div>
+      </div>
+      <div class="tool-section">
+        <h4>Shape Options</h4>
+        <label>
+          <input type="checkbox" id="fillShapes" onchange="toggleFillShapes()"> Fill shapes
+        </label>
+        <div style="margin-top: 0.5em;">
+          <label for="shapeOpacity">Opacity: <span id="opacityDisplay">100%</span></label>
+          <input type="range" id="shapeOpacity" min="0.1" max="1" step="0.1" value="1" onchange="setShapeOpacity(this.value)" style="width: 100%;">
+        </div>
+      </div>
+      <div class="tool-section">
+        <h4>AI Features</h4>
+        <div class="tooltip">
+          <button onclick="analyzeDrawing()">🤖 Analyze Art</button>
+          <span class="tooltiptext">Get AI feedback on composition</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="suggestColors()">🎨 Color Palette</button>
+          <span class="tooltiptext">AI color suggestions</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="openGallery()">🖼️ Gallery</button>
+          <span class="tooltiptext">View saved drawings</span>
+        </div>
+      </div>
+      <div class="tool-section">
+        <h4>Canvas Actions</h4>
+        <div class="tooltip">
+          <button onclick="clearCanvas()">🗑️ Clear Canvas</button>
+          <span class="tooltiptext">Clear everything on the canvas</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="saveCanvas()">💾 Save Drawing</button>
+          <span class="tooltiptext">Download your drawing as a PNG image</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="exportSVG()" style="font-size: 12px;">📄 Export SVG</button>
+          <span class="tooltiptext">Export as scalable vector graphics</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="exportPDF()" style="font-size: 12px;">📑 Export PDF</button>
+          <span class="tooltiptext">Export as PDF document</span>
+        </div>
+        <div class="tooltip">
+          <button onclick="loadImageFile()" style="font-size: 12px;">📁 Load Image</button>
+          <span class="tooltiptext">Load image from your device</span>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileLoad(event)">
+      </div>
+    </aside>
+  </main>
+
+  <div class="voice-status" id="voiceStatus">🎤 Listening...</div>
+
+  <button class="shortcuts-toggle" onclick="toggleShortcuts()">⌨️</button>
+  <div class="keyboard-shortcuts" id="keyboardShortcuts">
+    <strong>Keyboard Shortcuts:</strong><br>
+    Ctrl+Z - Undo<br>
+    Ctrl+Y - Redo<br>
+    Ctrl+S - Save<br>
+    P - Pencil<br>
+    E - Eraser<br>
+    F - Fill<br>
+    R - Rectangle<br>
+    C - Circle<br>
+    L - Line<br>
+    T - Triangle<br>
+    [ ] - Brush size<br>
+    1-5 - Color presets<br>
+    V - Voice Input<br>
+    M - Toggle Auto-Speak
+  </div>
+
+  <div class="gallery-modal" id="galleryModal">
+    <div class="gallery-content">
+      <span class="close-gallery" onclick="closeGallery()">&times;</span>
+      <h2>Your Gallery</h2>
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- Gallery items will be dynamically added here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/premium_features.js"></script>
+  <script>
+    // Canvas setup with performance optimizations
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Performance optimizations
+    ctx.imageSmoothingEnabled = false; // Faster rendering
+    let isDrawing = false;
+    let drawingTimeout = null;
+
+    // Voice Assistant Setup
+    let recognition = null;
+    let synthesis = window.speechSynthesis;
+    let isListening = false;
+    let autoSpeak = false;
+    let voices = [];
+
+    // Initialize Speech Recognition
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = function() {
+        isListening = true;
+        document.getElementById('voice-btn').classList.add('voice-recording');
+        showVoiceStatus('🎤 Listening for your drawing request...');
+      };
+
+      recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('prompt').value = transcript;
+        showVoiceStatus(`✅ Heard: "${transcript}"`);
+
+        // Auto-ask AI after voice input
+        setTimeout(() => {
+          askAI();
+          hideVoiceStatus();
+        }, 1000);
+      };
+
+      recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        showVoiceStatus(`❌ Error: ${event.error}`);
+        setTimeout(hideVoiceStatus, 3000);
+        stopListening();
+      };
+
+      recognition.onend = function() {
+        stopListening();
+      };
+    }
+
+    // Load available voices
+    function loadVoices() {
+      voices = synthesis.getVoices();
+      // Prefer female voices for AI assistant
+      const preferredVoices = voices.filter(voice => 
+        voice.name.toLowerCase().includes('female') || 
+        voice.name.toLowerCase().includes('samantha') ||
+        voice.name.toLowerCase().includes('karen') ||
+        voice.name.toLowerCase().includes('zira')
+      );
+      if (preferredVoices.length > 0) {
+        voices = preferredVoices;
+      }
+    }
+
+    if (synthesis.onvoiceschanged !== undefined) {
+      synthesis.onvoiceschanged = loadVoices;
+    }
+    loadVoices();
+
+    // Drawing state
+    let currentTool = 'pencil';
+    let currentColor = '#000000';
+    let brushSize = 5;
+    let startX, startY;
+
+    // Touch support variables
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+
+    // Undo/Redo system
+    let undoStack = [];
+    let redoStack = [];
+    let maxUndoSteps = 50;
+
+    // Layers system
+    let layers = [{ id: 'layer1', name: 'Layer 1', visible: true, opacity: 1 }];
+    let currentLayerId = 'layer1';
+    let layerCanvases = {};
+
+    // Fill tool variables
+    let fillTolerance = 10;
+
+    // Mouse events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    // Touch events for mobile
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    function getMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function getTouchPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      const touch = getTouchPos(e);
+      lastTouchX = touch.x;
+      lastTouchY = touch.y;
+
+      const mouseEvent = new MouseEvent('mousedown', {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }
+
+    function handleTouchMove(e) {
+      e.preventDefault();
+      const mouseEvent = new MouseEvent('mousemove', {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }
+
+    function handleTouchEnd(e) {
+      e.preventDefault();
+      const mouseEvent = new MouseEvent('mouseup', {});
+      canvas.dispatchEvent(mouseEvent);
+    }
+
+    function startDrawing(e) {
+      const pos = getMousePos(e);
+      startX = pos.x;
+      startY = pos.y;
+
+      if (currentTool === 'fill') {
+        floodFill(Math.floor(startX), Math.floor(startY), currentColor);
+        saveState();
+        return;
+      }
+
+      if (currentTool === 'eyedropper') {
+        pickColor(Math.floor(startX), Math.floor(startY));
+        return;
+      }
+
+      isDrawing = true;
+
+      if (currentTool === 'pencil' || currentTool === 'eraser') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+      }
+    }
+
+    // Performance optimization variables
+    let lastDrawTime = 0;
+    let drawBuffer = [];
+    const DRAW_INTERVAL = 16; // ~60fps
+
+    function draw(e) {
+      if (!isDrawing) return;
+
+      const now = performance.now();
+      if (now - lastDrawTime < DRAW_INTERVAL) {
+        // Buffer the drawing event for smooth performance
+        drawBuffer.push(e);
+        return;
+      }
+
+      lastDrawTime = now;
+
+      // Process buffered events
+      if (drawBuffer.length > 0) {
+        drawBuffer.forEach(bufferedEvent => processDrawEvent(bufferedEvent));
+        drawBuffer = [];
+      }
+
+      processDrawEvent(e);
+    }
+
+    function processDrawEvent(e) {
+      const pos = getMousePos(e);
+
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (currentTool === 'pencil') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = currentColor;
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        // Mirror drawing if symmetry is enabled
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          ctx.lineTo(mirrorX, pos.y);
+          ctx.stroke();
+        }
+      } else if (currentTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          ctx.lineTo(mirrorX, pos.y);
+          ctx.stroke();
+        }
+      } else if (currentTool === 'pattern') {
+        drawPattern(pos.x, pos.y);
+
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          drawPattern(mirrorX, pos.y);
+        }
+      }
+    }
+
+    // Add event listener for when pencil/eraser strokes end
+    canvas.addEventListener('mouseup', function(e) {
+      if (isDrawing && (currentTool === 'pencil' || currentTool === 'eraser')) {
+        setTimeout(() => saveState(), 10);
+      }
+    });
+
+    function stopDrawing(e) {
+      if (!isDrawing) return;
+
+      const pos = getMousePos(e);
+
+      if (currentTool === 'rectangle') {
+        drawRectangle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawRectangle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'circle') {
+        drawCircle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawCircle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'line') {
+        drawLine(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawLine(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'triangle') {
+        drawTriangle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawTriangle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'star') {
+        drawStar(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawStar(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'arrow') {
+        drawArrow(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawArrow(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'gradient') {
+        drawGradient(startX, startY, pos.x, pos.y);
+        saveState();
+      }
+
+      isDrawing = false;
+      ctx.beginPath();
+    }
+
+    function drawRectangle(x1, y1, x2, y2) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      if (document.getElementById('fillShapes').checked) {
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      }
+      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.globalAlpha = 1;
+    }
+
+    function drawCircle(x1, y1, x2, y2) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+      ctx.beginPath();
+      ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
+
+      if (document.getElementById('fillShapes').checked) {
+        ctx.fill();
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawLine(x1, y1, x2, y2) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawTriangle(x1, y1, x2, y2) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      const width = x2 - x1;
+      const height = y2 - y1;
+
+      ctx.beginPath();
+      ctx.moveTo(x1 + width / 2, y1); // Top point
+      ctx.lineTo(x1, y2); // Bottom left
+      ctx.lineTo(x2, y2); // Bottom right
+      ctx.closePath();
+
+      if (document.getElementById('fillShapes').checked) {
+        ctx.fill();
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+
+      // Remove active class from all tool buttons
+      document.querySelectorAll('button').forEach(btn => btn.classList.remove('active-tool'));
+
+      // Add active class to selected tool
+      const toolButton = document.getElementById(tool);
+      if (toolButton) {
+        toolButton.classList.add('active-tool');
+      }
+
+      // Set cursor style based on tool
+      canvas.style.cursor = currentTool === 'eraser' ? 'crosshair' : 'crosshair';
+    }
+
+    function setColor(color) {
+      currentColor = color;
+      document.getElementById('colorPicker').value = color;
+    }
+
+    function setBrushSize(size) {
+      brushSize = size;
+      document.getElementById('sizeDisplay').textContent = size + 'px';
+    }
+
+    function clearCanvas() {
+      if (confirm('Are you sure you want to clear the canvas?')) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function saveCanvas() {
+      // Create a temporary canvas with white background
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+
+      // Fill with white background
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      // Draw the original canvas on top
+      tempCtx.drawImage(canvas, 0, 0);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = 'my-drawing-' + new Date().getTime() + '.png';
+      link.href = tempCanvas.toDataURL();
+      link.click();
+
+      // Save drawing to gallery
+      saveToGallery(link.href);
+    }
+
+    // Voice Assistant Functions
+    function toggleVoiceInput() {
+      if (!recognition) {
+        alert('Voice recognition is not supported in your browser. Please use Chrome, Safari, or Edge.');
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    }
+
+    function stopListening() {
+      isListening = false;
+      document.getElementById('voice-btn').classList.remove('voice-recording');
+      hideVoiceStatus();
+    }
+
+    function toggleAutoSpeak() {
+      autoSpeak = !autoSpeak;
+      const speakBtn = document.getElementById('speak-btn');
+
+      if (autoSpeak) {
+        speakBtn.classList.add('auto-speak-on');
+        speakBtn.innerHTML = '🔊 ON';
+        speakText('Auto speak enabled. I will now speak all my responses.');
+      } else {
+        speakBtn.classList.remove('auto-speak-on');
+        speakBtn.innerHTML = '🔊 Speak';
+        // Stop any current speech
+        synthesis.cancel();
+      }
+    }
+
+    function speakText(text) {
+      if (!text || !synthesis) return;
+
+      // Cancel any ongoing speech
+      synthesis.cancel();
+
+      // Clean up text for better speech
+      const cleanText = text
+        .replace(/\n+/g, '. ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (cleanText.length > 300) {
+        // For long text, speak only the first part
+        const shortText = cleanText.substring(0, 250) + '... Check the screen for full details.';
+        speak(shortText);
+      } else {
+        speak(cleanText);
+      }
+    }
+
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Set voice properties
+      if (voices.length > 0) {
+        utterance.voice = voices[0];
+      }
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      utterance.volume = 0.8;
+
+      utterance.onstart = function() {
+        showVoiceStatus('🔊 AI is speaking...');
+      };
+
+      utterance.onend = function() {
+        hideVoiceStatus();
+      };
+
+      synthesis.speak(utterance);
+    }
+
+    function stripHTML(html) {
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      return temp.textContent || temp.innerText || '';
+    }
+
+    function showVoiceStatus(message) {
+      const status = document.getElementById('voiceStatus');
+      status.innerHTML = message;
+      status.style.display = 'block';
+    }
+
+    function hideVoiceStatus() {
+      const status = document.getElementById('voiceStatus');
+      status.style.display = 'none';
+    }
+
+    async function askAI(type = 'basic') {
+      const prompt = document.getElementById("prompt").value;
+      const aiResponse = document.getElementById("ai-response");
+
+      if (!prompt.trim()) {
+        const message = "Please enter what you'd like to draw!";
+        aiResponse.innerHTML = message;
+        if (autoSpeak) speakText("Please enter what you'd like to draw!");
+        return;
+      }
+
+      const loadingMessage = type === 'premium' ? "✨ Premium AI analyzing..." : "🤖 AI is thinking...";
+      aiResponse.innerHTML = loadingMessage;
+
+      try {
+        const res = await fetch("/analyze", {
+          method: "POST",
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prompt: prompt,
+            feature_type: type === 'premium' ? 'premium' : 'basic'
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.premium_required) {
+          aiResponse.innerHTML = data.suggestion;
+          if (autoSpeak) speakText(stripHTML(data.suggestion));
+          return;
+        }
+
+        // Enhanced AI response with tool suggestions
+        let suggestion = data.suggestion;
+
+        // Add specific tool suggestions and drawing steps
+        if (prompt.toLowerCase().includes('house') || prompt.toLowerCase().includes('building')) {
+          suggestion += "<br><br>🏠 <strong>Drawing Steps:</strong><br>1. Use <strong>Rectangle tool</strong> for the main walls<br>2. Use <strong>Triangle tool</strong> for the roof<br>3. Use <strong>Rectangle tool</strong> for windows and door<br>4. Switch to <strong>Pencil tool</strong> to add details like doorknob, window frames";
+        } else if (prompt.toLowerCase().includes('sun') || prompt.toLowerCase().includes('ball') || prompt.toLowerCase().includes('circle')) {
+          suggestion += "<br><br>☀️ <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> - click and drag from center outward<br>2. Switch to <strong>Pencil tool</strong> for rays or surface details<br>3. Use different brush sizes for varied line thickness";
+        } else if (prompt.toLowerCase().includes('tree') || prompt.toLowerCase().includes('mountain')) {
+          suggestion += "<br><br>🌲 <strong>Drawing Steps:</strong><br>1. Use <strong>Triangle tool</strong> for the basic tree/mountain shape<br>2. Use <strong>Rectangle tool</strong> for tree trunk<br>3. Switch to <strong>Pencil tool</strong> for texture, leaves, or rocky details<br>4. Try different brush sizes for varied textures";
+        } else if (prompt.toLowerCase().includes('face') || prompt.toLowerCase().includes('person')) {
+          suggestion += "<br><br>😊 <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> for the head<br>2. Use <strong>Pencil tool</strong> for facial features<br>3. Use <strong>Line tool</strong> for hair or straight edges<br>4. Adjust brush size for fine details";
+        } else if (prompt.toLowerCase().includes('car') || prompt.toLowerCase().includes('vehicle')) {
+          suggestion += "<br><br>🚗 <strong>Drawing Steps:</strong><br>1. Use <strong>Rectangle tool</strong> for the main body<br>2. Use <strong>Circle tool</strong> for wheels<br>3. Use <strong>Line tool</strong> for straight edges<br>4. Use <strong>Pencil tool</strong> for details like bumpers, lights";
+        } else if (prompt.toLowerCase().includes('flower') || prompt.toLowerCase().includes('plant')) {
+          suggestion += "<br><br>🌸 <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> for flower center<br>2. Use <strong>Pencil tool</strong> for petals (draw curved shapes)<br>3. Use <strong>Line tool</strong> for stem<br>4. Switch to smaller brush size for delicate details";
+        } else {
+          suggestion += "<br><br>🎨 <strong>General Drawing Tips:</strong><br>1. Start with basic shapes: <strong>Circle, Rectangle, Triangle, Line</strong><br>2. Use larger brush sizes for main shapes<br>3. Switch to <strong>Pencil tool</strong> with smaller brush for details<br>4. Use <strong>Eraser tool</strong> to refine and clean up<br>5. Try different colors from the color picker!";
+        }
+
+        aiResponse.innerHTML = suggestion;
+
+        // Speak the AI response if auto-speak is enabled
+        if (autoSpeak) {
+          speakText(stripHTML(suggestion));
+        }
+
+      } catch (error) {
+        const fallbackMessage = `Try breaking down '${prompt}' into basic shapes like circles, rectangles, and triangles. Start with the main outline and add details gradually!<br><br>💡 <strong>Tip:</strong> Use the shape tools on the right for geometric forms, then switch to Pencil for details.`;
+        aiResponse.innerHTML = fallbackMessage;
+        if (autoSpeak) speakText(stripHTML(fallbackMessage));
+      }
+    }
+
+    // Initialize canvas background and save initial state
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveState();
+    initializeLayers();
+
+    // Initialize layers system
+    function initializeLayers() {
+      updateLayersList();
+      layerCanvases['layer1'] = canvas;
+    }
+
+    // Undo/Redo functions
+    function saveState() {
+      if (undoStack.length >= maxUndoSteps) {
+        undoStack.shift();
+      }
+      undoStack.push(canvas.toDataURL());
+      redoStack = [];
+      updateUndoRedoButtons();
+    }
+
+    function undo() {
+      if (undoStack.length > 1) {
+        redoStack.push(undoStack.pop());
+        const prevState = undoStack[undoStack.length - 1];
+        const img = new Image();
+        img.onload = function() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = prevState;
+        updateUndoRedoButtons();
+      }
+    }
+
+    function redo() {
+      if (redoStack.length > 0) {
+        const nextState = redoStack.pop();
+        undoStack.push(nextState);
+        const img = new Image();
+        img.onload = function() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = nextState;
+        updateUndoRedoButtons();
+      }
+    }
+
+    function updateUndoRedoButtons() {
+      document.getElementById('undoBtn').disabled = undoStack.length <= 1;
+      document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+
+    // Fill tool implementation
+    function floodFill(startX, startY, fillColor) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const startIndex = (startY * canvas.width + startX) * 4;
+      const startR = data[startIndex];
+      const startG = data[startIndex + 1];
+      const startB = data[startIndex + 2];
+
+      const fillR = parseInt(fillColor.substr(1, 2), 16);
+      const fillG = parseInt(fillColor.substr(3, 2), 16);
+      const fillB = parseInt(fillColor.substr(5, 2), 16);
+
+      if (startR === fillR && startG === fillG && startB === fillB) return;
+
+      const pixelsToCheck = [startX, startY];
+
+      while (pixelsToCheck.length > 0) {
+        const y = pixelsToCheck.pop();
+        const x = pixelsToCheck.pop();
+
+        if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
+
+        const currentIndex = (y * canvas.width + x) * 4;
+        const currentR = data[currentIndex];
+        const currentG = data[currentIndex + 1];
+        const currentB = data[currentIndex + 2];
+
+        if (Math.abs(currentR - startR) > fillTolerance ||
+            Math.abs(currentG - startG) > fillTolerance ||
+            Math.abs(currentB - startB) > fillTolerance) continue;
+
+        data[currentIndex] = fillR;
+        data[currentIndex + 1] = fillG;
+        data[currentIndex + 2] = fillB;
+        data[currentIndex + 3] = 255;
+
+        pixelsToCheck.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Eyedropper tool
+    function pickColor(x, y) {
+      const imageData = ctx.getImageData(x, y, 1, 1);
+      const data = imageData.data;
+      const hex = '#' + 
+        ('00' + data[0].toString(16)).slice(-2) +
+        ('00' + data[1].toString(16)).slice(-2) +
+        ('00' + data[2].toString(16)).slice(-2);
+      setColor(hex);
+    }
+
+    // Enhanced shape drawing
+    function drawStar(x1, y1, x2, y2) {
+      const centerX = x1;
+      const centerY = y1;
+      const outerRadius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+      const innerRadius = outerRadius * 0.4;
+      const spikes = 5;
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const angle = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      if (document.getElementById('fillShapes').checked) {
+        ctx.fill();
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawArrow(x1, y1, x2, y2) {
+      const headLength = 20;
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      // Draw line
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // Draw arrowhead
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Layer management
+    function addLayer() {
+      const newId = 'layer' + (layers.length + 1);
+      layers.push({ id: newId, name: 'Layer ' + (layers.length + 1), visible: true, opacity: 1 });
+      updateLayersList();
+    }
+
+    function updateLayersList() {
+      const layersList = document.getElementById('layersList');
+      layersList.innerHTML = '';
+
+      layers.forEach((layer, index) => {
+        const layerDiv = document.createElement('div');
+        layerDiv.className = 'layer-item' + (layer.id === currentLayerId ? ' active' : '');
+
+        layerDiv.innerHTML = `
+          <input type="checkbox" ${layer.visible ? 'checked' : ''} onchange="toggleLayerVisibility('${layer.id}')">
+          <input type="text" value="${layer.name}" onchange="renameLayer('${layer.id}', this.value)" onclick="setCurrentLayer('${layer.id}')">
+          <div class="layer-controls">
+            <button onclick="moveLayer('${layer.id}', -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+            <button onclick="moveLayer('${layer.id}', 1)" ${index === layers.length - 1 ? 'disabled' : ''}>↓</button>
+            <button onclick="deleteLayer('${layer.id}')" ${layers.length === 1 ? 'disabled' : ''}>×</button>
+          </div>
+        `;
+
+        layersList.appendChild(layerDiv);
+      });
+    }
+
+    function setCurrentLayer(layerId) {
+      currentLayerId = layerId;
+      updateLayersList();
+    }
+
+    function toggleLayerVisibility(layerId) {
+      const layer = layers.find(l => l.id === layerId);
+      if (layer) {
+        layer.visible = !layer.visible;
+        // Implementation would require proper layer system
+      }
+    }
+
+    function renameLayer(layerId, newName) {
+      const layer = layers.find(l => l.id === layerId);
+      if (layer) {
+        layer.name = newName;
+      }
+    }
+
+    function moveLayer(layerId, direction) {
+      const index = layers.findIndex(l => l.id === layerId);
+      if (index !== -1 && index + direction >= 0 && index + direction < layers.length) {
+        [layers[index], layers[index + direction]] = [layers[index + direction], layers[index]];
+        updateLayersList();
+      }
+    }
+
+    function deleteLayer(layerId) {
+      if (layers.length > 1) {
+        layers = layers.filter(l => l.id !== layerId);
+        if (currentLayerId === layerId) {
+          currentLayerId = layers[0].id;
+        }
+        updateLayersList();
+      }
+    }
+
+    // File operations
+    function loadImageFile() {
+      document.getElementById('fileInput').click();
+    }
+
+    function handleFileLoad(event) {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            saveState();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function exportSVG() {
+      // Simple SVG export (basic implementation)
+      const svgData = `<svg width="${canvas.width}" height="${canvas.height}" xmlns="http://www.w3.org/2000/svg">
+        <image href="${canvas.toDataURL()}" width="${canvas.width}" height="${canvas.height}"/>
+      </svg>`;
+
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = 'drawing-' + new Date().getTime() + '.svg';
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Enhanced tool functions
+    function toggleFillShapes() {
+      // Toggle fill mode for shapes
+    }
+
+    function setShapeOpacity(value) {
+      document.getElementById('opacityDisplay').textContent = Math.round(value * 100) + '%';
+    }
+
+    function toggleShortcuts() {
+      const shortcuts = document.getElementById('keyboardShortcuts');
+      shortcuts.style.display = shortcuts.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT') return;
+
+      if (e.ctrlKey) {
+        switch(e.key) {
+          case 'z': e.preventDefault(); undo(); break;
+          case 'y': e.preventDefault(); redo(); break;
+          case 's': e.preventDefault(); saveCanvas(); break;
+        }
+      } else {
+        switch(e.key.toLowerCase()) {
+          case 'p': setTool('pencil'); break;
+          case 'e': setTool('eraser'); break;
+          case 'f': setTool('fill'); break;
+          case 'r': setTool('rectangle'); break;
+          case 'c': setTool('circle'); break;
+          case 'l': setTool('line'); break;
+          case 't': setTool('triangle'); break;
+          case '[': setBrushSize(Math.max(1, brushSize - 1)); break;
+          case ']': setBrushSize(Math.min(50, brushSize + 1)); break;
+          case '1': setColor('#000000'); break;
+          case '2': setColor('#ff0000'); break;
+          case '3': setColor('#00ff00'); break;
+          case '4': setColor('#0000ff'); break;
+          case '5': setColor('#ffff00'); break;
+          case 'v': e.preventDefault(); toggleVoiceInput(); break;
+          case 'm': e.preventDefault(); toggleAutoSpeak(); break;
+          case 'g': e.preventDefault(); openGallery(); break;
+        }
+      }
+    });
+
+    // Reference image functions
+    function loadReference() {
+      const imageUrl = document.getElementById('imageUrl').value.trim();
+      if (!imageUrl) {
+        alert('Please enter an image URL');
+        return;
+      }
+
+      const referenceImage = document.getElementById('referenceImage');
+      const referenceContainer = document.getElementById('reference-container');
+      const clearBtn = document.getElementById('clearRefBtn');
+      const aiResponse = document.getElementById('ai-response');
+
+      // Show loading state
+      aiResponse.innerHTML = "📷 Loading reference image...";
+
+      // Test if the image URL is valid
+      referenceImage.onload = function() {
+        referenceContainer.style.display = 'block';
+        clearBtn.style.display = 'inline-block';
+        document.getElementById('toggleRefBtn').textContent = '👁️ Hide';
+        aiResponse.innerHTML = "✅ Reference image loaded successfully! You can now trace over it or use it as a guide for your drawing.";
+      };
+
+      referenceImage.onerror = function() {
+        let errorMessage = '❌ Failed to load image. ';
+        let suggestions = '';
+
+        // Check if it's a Pinterest URL
+        if (imageUrl.includes('pinimg.com') || imageUrl.includes('pinterest.com')) {
+          errorMessage += 'Pinterest images often have restrictions that prevent direct loading.';
+          suggestions = '<br><br>🔄 <strong>Try these alternatives:</strong><br>• Right-click the Pinterest image → "Copy image address" → try that URL<br>• Save the image to your device and upload to a free image host like <a href="https://imgur.com" target="_blank">Imgur</a><br>• Use images from <a href="https://unsplash.com" target="_blank">Unsplash</a>, <a href="https://pixabay.com" target="_blank">Pixabay</a>, or <a href="https://pexels.com" target="_blank">Pexels</a>';
+        } else if (imageUrl.includes('instagram.com') || imageUrl.includes('facebook.com') || imageUrl.includes('twitter.com')) {
+          errorMessage += 'Social media images often have restrictions.';
+          suggestions = '<br><br>💡 <strong>Try instead:</strong><br>• Save the image and upload to <a href="https://imgur.com" target="_blank">Imgur</a><br>• Use direct image URLs from sites like <a href="https://unsplash.com" target="_blank">Unsplash</a> or <a href="https://pixabay.com" target="_blank">Pixabay</a>';
+        } else {
+          errorMessage += 'The image URL might be invalid or have access restrictions.';
+          suggestions = '<br><br>✅ <strong>Working image examples:</strong><br>• <code>https://images.unsplash.com/photo-1234567890/example.jpg</code><br>• <code>https://i.imgur.com/example.jpg</code><br>• <code>https://cdn.pixabay.com/photo/example.jpg</code><br><br>🔍 <strong>Tips:</strong><br>• Make sure URL ends with .jpg, .png, .gif, or .webp<br>• Try right-clicking the image → "Copy image address"<br>• Use free image hosting services if needed';
+        }
+
+        aiResponse.innerHTML = errorMessage + suggestions;
+      };
+
+      referenceImage.src = imageUrl;
+    }
+
+    function clearReference() {
+      const referenceContainer = document.getElementById('reference-container');
+      const clearBtn = document.getElementById('clearRefBtn');
+      const imageUrl = document.getElementById('imageUrl');
+
+      referenceContainer.style.display = 'none';
+      clearBtn.style.display = 'none';
+      imageUrl.value = '';
+    }
+
+    function toggleReference() {
+      const referenceImage = document.getElementById('referenceImage');
+      const toggleBtn = document.getElementById('toggleRefBtn');
+
+      if (referenceImage.style.visibility === 'hidden') {
+        referenceImage.style.visibility = 'visible';
+        toggleBtn.textContent = '👁️ Hide';
+      } else {
+        referenceImage.style.visibility = 'hidden';
+        toggleBtn.textContent = '👁️ Show';
+      }
+    }
+
+    function setReferenceOpacity(value) {
+      const referenceImage = document.getElementById('referenceImage');
+      const opacityLabel = document.getElementById('opacityLabel');
+
+      referenceImage.style.opacity = value;
+      opacityLabel.textContent = Math.round(value * 100) + '%';
+    }
+
+    function showImageExamples() {
+      const examples = [
+        'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400',
+        'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=400',
+        'https://images.unsplash.com/photo-1570831739435-6601aa3fa4fb?w=400',
+        'https://images.unsplash.com/photo-1541963463532-d68292c34d19?w=400',
+        'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=400'
+      ];
+
+      const randomExample = examples[Math.floor(Math.random() * examples.length)];
+      document.getElementById('imageUrl').value = randomExample;
+
+      const aiResponse = document.getElementById('ai-response');
+      aiResponse.innerHTML = '💡 <strong>Example loaded!</strong> This is a working image URL from Unsplash. Click "Load Reference" to use it, or replace with your own image URL.<br><br>🎯 <strong>For best results:</strong><br>• Use direct image URLs (ending in .jpg, .png, etc.)<br>• Try free image sites like Unsplash, Pixabay, or Imgur<br>• Avoid social media URLs (Pinterest, Instagram, etc.)';
+    }
+
+    // Gallery functions
+    function openGallery() {
+      const galleryModal = document.getElementById('galleryModal');
+      galleryModal.style.display = 'block';
+      loadGalleryImages();
+    }
+
+    function closeGallery() {
+      const galleryModal = document.getElementById('galleryModal');
+      galleryModal.style.display = 'none';
+    }
+
+    function loadGalleryImages() {
+      let galleryImages = JSON.parse(localStorage.getItem('galleryImages') || '[]');
+      const galleryGrid = document.getElementById('galleryGrid');
+      galleryGrid.innerHTML = '';
+
+      galleryImages.forEach((image, index) => {
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'gallery-item';
+        galleryItem.innerHTML = `
+          <img src="${image}" alt="Drawing">
+          <div class="gallery-item-info">Saved on ${new Date().toLocaleDateString()}</div>
+        `;
+        galleryGrid.appendChild(galleryItem);
+      });
+    }
+
+    function saveToGallery(imageData) {
+      let galleryImages = JSON.parse(localStorage.getItem('galleryImages') || '[]');
+      galleryImages.push(imageData);
+      localStorage.setItem('galleryImages', JSON.stringify(galleryImages));
+    }
+
+    // Handle canvas resize for responsive design
+    function resizeCanvas() {
+      const container = document.getElementById('result-area');
+      const maxWidth = container.clientWidth - 40;
+      const maxHeight = container.clientHeight - 40;
+
+      if (maxWidth < canvas.width || maxHeight < canvas.height) {
+        canvas.style.width = Math.min(maxWidth, canvas.width) + 'px';
+        canvas.style.height = Math.min(maxHeight, canvas.height) + 'px';
+      }
+    }
+
+    // Advanced Features
+    let symmetryEnabled = false;
+    let symmetryLine = canvas.width / 2;
+    let gridEnabled = false;
+    let gradientStartColor = '#ff0000';
+    let gradientEndColor = '#0000ff';
+
+    // Gradient tool implementation
+    function drawGradient(x1, y1, x2, y2) {
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, gradientStartColor);
+      gradient.addColorStop(1, gradientEndColor);
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = gradient;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = document.getElementById('shapeOpacity').value;
+
+      // Draw gradient rectangle
+      ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+      ctx.globalAlpha = 1;
+    }
+
+    // Pattern brush implementation
+    function drawPattern(x, y) {
+      const patterns = ['dots', 'lines', 'crosshatch', 'stipple'];
+      const currentPattern = patterns[Math.floor(Math.random() * patterns.length)];
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = brushSize / 3;
+
+      switch(currentPattern) {
+        case 'dots':
+          for (let i = 0; i < 5; i++) {
+            const dx = (Math.random() - 0.5) * brushSize;
+            const dy = (Math.random() - 0.5) * brushSize;
+            ctx.beginPath();
+            ctx.arc(x + dx, y + dy, 1, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+          break;
+        case 'lines':
+          for (let i = 0; i < 3; i++) {
+            const angle = Math.random() * Math.PI;
+            const length = brushSize;
+            ctx.beginPath();
+            ctx.moveTo(x - Math.cos(angle) * length/2, y - Math.sin(angle) * length/2);
+            ctx.lineTo(x + Math.cos(angle) * length/2, y + Math.sin(angle) * length/2);
+            ctx.stroke();
+          }
+          break;
+        case 'crosshatch':
+          const size = brushSize / 2;
+          ctx.beginPath();
+          ctx.moveTo(x - size, y - size);
+          ctx.lineTo(x + size, y + size);
+          ctx.moveTo(x - size, y + size);
+          ctx.lineTo(x + size, y - size);
+          ctx.stroke();
+          break;
+        case 'stipple':
+          for (let i = 0; i < 8; i++) {
+            const dx = (Math.random() - 0.5) * brushSize;
+            const dy = (Math.random() - 0.5) * brushSize;
+            ctx.fillRect(x + dx, y + dy, 1, 1);
+          }
+          break;
+      }
+    }
+
+    // Symmetry mode
+    function toggleSymmetry() {
+      symmetryEnabled = !symmetryEnabled;
+      const btn = document.getElementById('symmetry');
+
+      if (symmetryEnabled) {
+        btn.classList.add('symmetry-active');
+        showSymmetryLine();
+      } else {
+        btn.classList.remove('symmetry-active');
+        hideSymmetryLine();
+      }
+    }
+
+    function showSymmetryLine() {
+      const line = document.createElement('div');
+      line.id = 'symmetryLine';
+      line.className = 'symmetry-line';
+      line.style.left = (canvas.offsetLeft + symmetryLine) + 'px';
+      line.style.top = canvas.offsetTop + 'px';
+      line.style.width = '2px';
+      line.style.height = canvas.height + 'px';
+      document.getElementById('result-area').appendChild(line);
+    }
+
+    function hideSymmetryLine() {
+      const line = document.getElementById('symmetryLine');
+      if (line) line.remove();
+    }
+
+    // Grid system
+    function toggleGrid() {
+      gridEnabled = !gridEnabled;
+      const btn = document.getElementById('grid');
+
+      if (gridEnabled) {
+        btn.classList.add('grid-active');
+        showPerspectiveGrid();
+      } else {
+        btn.classList.remove('grid-active');
+        hidePerspectiveGrid();
+      }
+    }
+
+    function showPerspectiveGrid() {
+      const gridCanvas = document.createElement('canvas');
+      gridCanvas.id = 'perspectiveGrid';
+      gridCanvas.className = 'perspective-grid';
+      gridCanvas.width = canvas.width;
+      gridCanvas.height = canvas.height;
+      gridCanvas.style.width = canvas.style.width;
+      gridCanvas.style.height = canvas.style.height;
+
+      const gridCtx = gridCanvas.getContext('2d');
+      gridCtx.strokeStyle = 'rgba(0, 0, 255, 0.3)';
+      gridCtx.lineWidth = 1;
+
+      // Draw grid lines
+      const gridSize = 50;
+      for (let x = 0; x <= canvas.width; x += gridSize) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(x, 0);
+        gridCtx.lineTo(x, canvas.height);
+        gridCtx.stroke();
+      }
+
+      for (let y = 0; y <= canvas.height; y += gridSize) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(0, y);
+        gridCtx.lineTo(canvas.width, y);
+        gridCtx.stroke();
+      }
+
+      document.getElementById('result-area').appendChild(gridCanvas);
+    }
+
+    function hidePerspectiveGrid() {
+      const grid = document.getElementById('perspectiveGrid');
+      if (grid) grid.remove();
+    }
+
+    // AI Analysis Functions
+    async function analyzeDrawing() {
+      const imageData = canvas.toDataURL();
+      const aiResponse = document.getElementById('ai-response');
+
+      aiResponse.innerHTML = "🤖 Analyzing your artwork...";
+
+      try {
+        const analysis = await PremiumFeatures.PremiumAI.analyzeComposition(imageData);
+
+        let response = `🎨 <strong>AI Art Analysis</strong><br><br>`;
+        response += `📊 <strong>Tonal Balance:</strong> ${analysis.balance}<br>`;
+        response += `💡 <strong>Light Areas:</strong> ${analysis.brightRatio}%<br>`;
+        response += `🌑 <strong>Dark Areas:</strong> ${analysis.darkRatio}%<br><br>`;
+        response += `🎯 <strong>Focus Points:</strong> ${analysis.focusPoints.join(', ')}<br><br>`;
+        response += `✨ <strong>Suggestions:</strong><br>`;
+        analysis.suggestions.forEach(suggestion => {
+          response += `• ${suggestion}<br>`;
+        });
+
+        aiResponse.innerHTML = response;
+
+        if (autoSpeak) {
+          speakText(`Your artwork has ${analysis.balance} tonal balance. ${analysis.suggestions[0]}`);
+        }
+
+      } catch (error) {
+        aiResponse.innerHTML = "🎨 <strong>Quick Analysis:</strong><br>Your drawing shows good use of space! Consider adding more contrast between light and dark areas for visual impact.";
+      }
+    }
+
+    async function suggestColors() {
+      const imageData = canvas.toDataURL();
+      const aiResponse = document.getElementById('ai-response');
+
+      aiResponse.innerHTML = "🎨 Generating color palette...";
+
+      try {
+        const palette = await PremiumFeatures.PremiumAI.suggestColorPalette(imageData);
+
+        let response = `🌈 <strong>AI Color Palette</strong><br><br>`;
+        response += `🎯 <strong>Primary Color:</strong> <span style="background-color: ${palette.primary}; padding: 2px 8px; color: white;">${palette.primary}</span><br>`;
+        response += `🔸 <strong>Secondary:</strong> <span style="background-color: ${palette.secondary}; padding: 2px 8px; color: white;">${palette.secondary}</span><br>`;
+        response += `✨ <strong>Accent:</strong> <span style="background-color: ${palette.accent}; padding: 2px 8px; color: white;">${palette.accent}</span><br><br>`;
+        response += `🎨 <strong>Color Suggestions:</strong><br>`;
+        palette.suggestions.forEach(suggestion => {
+          response += `• ${suggestion}<br>`;
+        });
+
+        // Add clickable color swatches
+        response += `<br><strong>Click to use colors:</strong><br>`;
+        response += `<span style="display: inline-block; width: 30px; height: 30px; background-color: ${palette.primary}; margin: 2px; cursor: pointer; border: 1px solid #ccc;" onclick="setColor('${palette.primary}')" title="Primary"></span>`;
+        response += `<span style="display: inline-block; width: 30px; height: 30px; background-color: ${palette.secondary}; margin: 2px; cursor: pointer; border: 1px solid #ccc;" onclick="setColor('${palette.secondary}')" title="Secondary"></span>`;
+        response += `<span style="display: inline-block; width: 30px; height: 30px; background-color: ${palette.accent}; margin: 2px; cursor: pointer; border: 1px solid #ccc;" onclick="setColor('${palette.accent}')" title="Accent"></span>`;
+
+        if (palette.complementary && palette.complementary.length > 0) {
+          palette.complementary.forEach((color, index) => {
+            response += `<span style="display: inline-block; width: 30px; height: 30px; background-color: ${color}; margin: 2px; cursor: pointer; border: 1px solid #ccc;" onclick="setColor('${color}')" title="Complementary ${index + 1}"></span>`;
+          });
+        }
+
+        aiResponse.innerHTML = response;
+
+        if (autoSpeak) {
+          speakText(`I've generated a color palette for your artwork. Try using ${palette.primary} as your primary color.`);
+        }
+
+      } catch (error) {
+        aiResponse.innerHTML = "🎨 <strong>Color Suggestions:</strong><br>Try using complementary colors like blue and orange, or red and green for strong contrast. Analogous colors (colors next to each other on the color wheel) create harmony.";
+      }
+    }
+
+    // PDF Export function
+    function exportPDF() {
+      // Simple PDF export using canvas
+      const link = document.createElement('a');
+      link.download = 'drawing-' + new Date().getTime() + '.pdf';
+
+      // For a more complete PDF solution, you'd use jsPDF library
+      // For now, we'll export as high-quality PNG
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = canvas.width * 2; // Higher resolution
+      tempCanvas.height = canvas.height * 2;
+
+      tempCtx.scale(2, 2);
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, canvas.width, canvas.height);
+      tempCtx.drawImage(canvas, 0, 0);
+
+      link.href = tempCanvas.toDataURL();
+      link.click();
+    }
+
+    // Enhanced drawing functions with new tools
+    function draw(e) {
+      if (!isDrawing) return;
+
+      const pos = getMousePos(e);
+
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (currentTool === 'pencil') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = currentColor;
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        // Mirror drawing if symmetry is enabled
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          ctx.lineTo(mirrorX, pos.y);
+          ctx.stroke();
+        }
+      } else if (currentTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          ctx.lineTo(mirrorX, pos.y);
+          ctx.stroke();
+        }
+      } else if (currentTool === 'pattern') {
+        drawPattern(pos.x, pos.y);
+
+        if (symmetryEnabled) {
+          const mirrorX = symmetryLine * 2 - pos.x;
+          drawPattern(mirrorX, pos.y);
+        }
+      }
+    }
+
+    // Update stopDrawing for new tools
+    function stopDrawing(e) {
+      if (!isDrawing) return;
+
+      const pos = getMousePos(e);
+
+      if (currentTool === 'rectangle') {
+        drawRectangle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawRectangle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'circle') {
+        drawCircle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawCircle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'line') {
+        drawLine(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawLine(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'triangle') {
+        drawTriangle(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawTriangle(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'star') {
+        drawStar(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawStar(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'arrow') {
+        drawArrow(startX, startY, pos.x, pos.y);
+        if (symmetryEnabled) {
+          const mirrorStartX = symmetryLine * 2 - startX;
+          const mirrorEndX = symmetryLine * 2 - pos.x;
+          drawArrow(mirrorStartX, startY, mirrorEndX, pos.y);
+        }
+        saveState();
+      } else if (currentTool === 'gradient') {
+        drawGradient(startX, startY, pos.x, pos.y);
+        saveState();
+      }
+
+      isDrawing = false;
+      ctx.beginPath();
+    }
+
+    // Call resize on load and window resize
+    window.addEventListener('load', resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
+
+    // Prevent scrolling when touching the canvas
+    document.body.addEventListener('touchstart', function (e) {
+      if (e.target === canvas) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.body.addEventListener('touchend', function (e) {
+      if (e.target === canvas) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.body.addEventListener('touchmove', function (e) {
+      if (e.target === canvas) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+        // Voice Assistant Functions (moved to the top)
+    function toggleVoiceInput() {
+      if (!recognition) {
+        alert('Voice recognition is not supported in your browser. Please use Chrome, Safari, or Edge.');
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    }
+
+    function stopListening() {
+      isListening = false;
+      document.getElementById('voice-btn').classList.remove('voice-recording');
+      hideVoiceStatus();
+    }
+
+    function toggleAutoSpeak() {
+      autoSpeak = !autoSpeak;
+      const speakBtn = document.getElementById('speak-btn');
+
+      if (autoSpeak) {
+        speakBtn.classList.add('auto-speak-on');
+        speakBtn.innerHTML = '🔊 ON';
+        speakText('Auto speak enabled. I will now speak all my responses.');
+      } else {
+        speakBtn.classList.remove('auto-speak-on');
+        speakBtn.innerHTML = '🔊 Speak';
+        // Stop any current speech
+        synthesis.cancel();
+      }
+    }
+
+    function speakText(text) {
+      if (!text || !synthesis) return;
+
+      // Cancel any ongoing speech
+      synthesis.cancel();
+
+      // Clean up text for better speech
+      const cleanText = text
+        .replace(/\n+/g, '. ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (cleanText.length > 300) {
+        // For long text, speak only the first part
+        const shortText = cleanText.substring(0, 250) + '... Check the screen for full details.';
+        speak(shortText);
+      } else {
+        speak(cleanText);
+      }
+    }
+
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Set voice properties
+      if (voices.length > 0) {
+        utterance.voice = voices[0];
+      }
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      utterance.volume = 0.8;
+
+      utterance.onstart = function() {
+        showVoiceStatus('🔊 AI is speaking...');
+      };
+
+      utterance.onend = function() {
+        hideVoiceStatus();
+      };
+
+      synthesis.speak(utterance);
+    }
+
+    function stripHTML(html) {
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      return temp.textContent || temp.innerText || '';
+    }
+
+    function showVoiceStatus(message) {
+      const status = document.getElementById('voiceStatus');
+      status.innerHTML = message;
+      status.style.display = 'block';
+    }
+
+    function hideVoiceStatus() {
+      const status = document.getElementById('voiceStatus');
+      status.style.display = 'none';
+    }
+    async function askAI(type = 'basic') {
+      const prompt = document.getElementById("prompt").value;
+      const aiResponse = document.getElementById("ai-response");
+
+      if (!prompt.trim()) {
+        const message = "Please enter what you'd like to draw!";
+        aiResponse.innerHTML = message;
+        if (autoSpeak) speakText("Please enter what you'd like to draw!");
+        return;
+      }
+
+      const loadingMessage = type === 'premium' ? "✨ Premium AI analyzing..." : "🤖 AI is thinking...";
+      aiResponse.innerHTML = loadingMessage;
+
+      try {
+        const res = await fetch("/analyze", {
+          method: "POST",
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prompt: prompt,
+            feature_type: type === 'premium' ? 'premium' : 'basic'
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.premium_required) {
+          aiResponse.innerHTML = data.suggestion;
+          if (autoSpeak) speakText(stripHTML(data.suggestion));
+          return;
+        }
+
+        // Enhanced AI response with tool suggestions
+        let suggestion = data.suggestion;
+
+        // Add specific tool suggestions and drawing steps
+        if (prompt.toLowerCase().includes('house') || prompt.toLowerCase().includes('building')) {
+          suggestion += "<br><br>🏠 <strong>Drawing Steps:</strong><br>1. Use <strong>Rectangle tool</strong> for the main walls<br>2. Use <strong>Triangle tool</strong> for the roof<br>3. Use <strong>Rectangle tool</strong> for windows and door<br>4. Switch to <strong>Pencil tool</strong> to add details like doorknob, window frames";
+        } else if (prompt.toLowerCase().includes('sun') || prompt.toLowerCase().includes('ball') || prompt.toLowerCase().includes('circle')) {
+          suggestion += "<br><br>☀️ <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> - click and drag from center outward<br>2. Switch to <strong>Pencil tool</strong> for rays or surface details<br>3. Use different brush sizes for varied line thickness";
+        } else if (prompt.toLowerCase().includes('tree') || prompt.toLowerCase().includes('mountain')) {
+          suggestion += "<br><br>🌲 <strong>Drawing Steps:</strong><br>1. Use <strong>Triangle tool</strong> for the basic tree/mountain shape<br>2. Use <strong>Rectangle tool</strong> for tree trunk<br>3. Switch to <strong>Pencil tool</strong> for texture, leaves, or rocky details<br>4. Try different brush sizes for varied textures";
+        } else if (prompt.toLowerCase().includes('face') || prompt.toLowerCase().includes('person')) {
+          suggestion += "<br><br>😊 <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> for the head<br>2. Use <strong>Pencil tool</strong> for facial features<br>3. Use <strong>Line tool</strong> for hair or straight edges<br>4. Adjust brush size for fine details";
+        } else if (prompt.toLowerCase().includes('car') || prompt.toLowerCase().includes('vehicle')) {
+          suggestion += "<br><br>🚗 <strong>Drawing Steps:</strong><br>1. Use <strong>Rectangle tool</strong> for the main body<br>2. Use <strong>Circle tool</strong> for wheels<br>3. Use <strong>Line tool</strong> for straight edges<br>4. Use <strong>Pencil tool</strong> for details like bumpers, lights";
+        } else if (prompt.toLowerCase().includes('flower') || prompt.toLowerCase().includes('plant')) {
+          suggestion += "<br><br>🌸 <strong>Drawing Steps:</strong><br>1. Use <strong>Circle tool</strong> for flower center<br>2. Use <strong>Pencil tool</strong> for petals (draw curved shapes)<br>3. Use <strong>Line tool</strong> for stem<br>4. Switch to smaller brush size for delicate details";
+        } else {
+          suggestion += "<br><br>🎨 <strong>General Drawing Tips:</strong><br>1. Start with basic shapes: <strong>Circle, Rectangle, Triangle, Line</strong><br>2. Use larger brush sizes for main shapes<br>3. Switch to <strong>Pencil tool</strong> with smaller brush for details<br>4. Use <strong>Eraser tool</strong> to refine and clean up<br>5. Try different colors from the color picker!";
+        }
+
+        aiResponse.innerHTML = suggestion;
+
+        // Speak the AI response if auto-speak is enabled
+        if (autoSpeak) {
+          speakText(stripHTML(suggestion));
+        }
+
+      } catch (error) {
+        const fallbackMessage = `Try breaking down '${prompt}' into basic shapes like circles, rectangles, and triangles. Start with the main outline and add details gradually!<br><br>💡 <strong>Tip:</strong> Use the shape tools on the right for geometric forms, then switch to Pencil for details.`;
+        aiResponse.innerHTML = fallbackMessage;
+        if (autoSpeak) speakText(stripHTML(fallbackMessage));
+      }
+    }
+  </script>
+</body>
+</html>
